@@ -3,7 +3,7 @@ const canvas=document.querySelector('#preview'),ctx=canvas.getContext('2d',{will
 const defs=[['brightness','밝기',-60,60,0],['contrast','대비',-40,40,0],['warmth','피부톤 / 온도',-40,40,0],['saturation','색감',-50,50,0],['softness','부드러움',0,30,0],['sharpness','선명도',0,30,0]];
 const vals={};const settings=document.querySelector('#settings');defs.forEach(([id,title,min,max,def])=>{vals[id]=def;const l=document.createElement('label');l.className='setting';l.innerHTML='<span>'+title+' <output id="out-'+id+'">'+def+'</output></span><input type="range" id="'+id+'" min="'+min+'" max="'+max+'" value="'+def+'">';settings.append(l);l.querySelector('input').addEventListener('input',e=>{vals[id]=+e.target.value;l.querySelector('output').textContent=vals[id];render()})});
 function message(s){document.querySelector('#msg').textContent=s}
-function drawCover(image){const w=canvas.width,h=canvas.height,s=Math.max(w/image.width,h/image.height)*zoom,sw=w/s,sh=h/s;ctx.fillStyle='#eef1f4';ctx.fillRect(0,0,w,h);ctx.drawImage(image,(image.width-sw)/2-panX/s,(image.height-sh)/2-panY/s,sw,sh,0,0,w,h)}
+function drawCover(image){const w=canvas.width,h=canvas.height,s=Math.max(w/image.width,h/image.height)*zoom,dw=image.width*s,dh=image.height*s;ctx.fillStyle='#eef1f4';ctx.fillRect(0,0,w,h);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(image,(w-dw)/2+panX,(h-dh)/2+panY,dw,dh)}
 async function load(file){if(!file)return;try{const url=URL.createObjectURL(file),i=new Image();i.onload=()=>{img=i;document.querySelector("#sourceSize").textContent="원본 사진: "+i.naturalWidth+" × "+i.naturalHeight+"픽셀";zoom=1;panX=0;panY=0;syncZoom();drawCover(i);original=ctx.getImageData(0,0,900,1200);segMask=null;smartEnabled=false;spots=[];history=[];resetVals();render();message('사진을 불러왔습니다.');URL.revokeObjectURL(url)};i.onerror=()=>message('사진을 열 수 없습니다. JPG 또는 PNG를 사용해 주세요.');i.src=url}catch(e){message('사진을 열 수 없습니다.')}}
 document.querySelectorAll('input[type=file]').forEach(x=>x.onchange=e=>load(e.target.files[0]));
 function resetVals(){defs.forEach(([id,,,,def])=>{vals[id]=def;document.getElementById(id).value=def;document.getElementById('out-'+id).textContent=def})}
@@ -96,7 +96,7 @@ document.querySelector('#zoomIn').onclick=()=>setZoom(zoom+.15);
 document.querySelector('#zoomOut').onclick=()=>setZoom(zoom-.15);
 document.querySelector('#zoomReset').onclick=()=>{panX=panY=0;setZoom(1)};
 function point(e){const r=canvas.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width*900,y:(e.clientY-r.top)/r.height*1200}}
-canvas.addEventListener('pointerdown',e=>{if(!img||document.querySelector('#spot').checked)return;activePointers.set(e.pointerId,point(e));canvas.setPointerCapture(e.pointerId);lastCenter=null});
+canvas.addEventListener('pointerdown',e=>{if(!img||document.querySelector('#spot').checked)return;e.preventDefault();activePointers.set(e.pointerId,point(e));canvas.setPointerCapture(e.pointerId);lastCenter=null});
 canvas.addEventListener('pointermove',e=>{if(!activePointers.has(e.pointerId))return;e.preventDefault();const next=point(e),prev=activePointers.get(e.pointerId);activePointers.set(e.pointerId,next);if(activePointers.size===1){panX+=next.x-prev.x;panY+=next.y-prev.y;updateCrop()}else if(activePointers.size===2){const a=[...activePointers.values()],dist=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y);if(lastPinch>0)setZoom(zoom*dist/lastPinch);lastPinch=dist}});
 for(const ev of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(ev,e=>{activePointers.delete(e.pointerId);lastPinch=0});
 
